@@ -1,0 +1,52 @@
+services:
+  dashboard:
+    image: dashboard:local
+    pull_policy: missing
+    build:
+      context: .
+      dockerfile: ./ci/Dockerfile
+      secrets:
+        - source: kaggle-api-creds
+          target: /root/.kaggle/kaggle.json
+          mode: 0600
+      tags:
+        - dashboard:local
+    develop:
+      watch:
+        - path: ./app/templates
+          action: sync
+          target: /app/templates
+        - path: ./app
+          action: sync+restart
+          target: /app
+          ignore: 
+            - /app/templates
+        - path: ./ci
+          action: rebuild
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    shm_size: 1g
+    ulimits:
+      memlock: -1
+    environment:
+      FLASK_ENV: development
+    ports:
+      - "5000:5000"
+    volumes:
+      - workspace:/workspace
+    tty: true
+    entrypoint: ['/bin/bash']
+
+volumes:
+  workspace:
+    name: workspace
+    external: false
+
+secrets:
+  kaggle-api-creds:
+    file: ./kaggle.json
